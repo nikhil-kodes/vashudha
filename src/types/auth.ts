@@ -27,6 +27,8 @@ export interface UserBase {
   verified: boolean;
   createdAt: string;
   walletAddress?: string;        // MetaMask wallet address (saved from /wallet page)
+  latitude?: number;             // GPS latitude captured at registration
+  longitude?: number;            // GPS longitude captured at registration
 }
 
 /** Donor = restaurants, caterers, hostels, PGs, individuals */
@@ -77,6 +79,8 @@ export interface DonorRegisterData {
   pincode: string;
   gstNumber?: string;
   fssaiLicense?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface NGORegisterData {
@@ -94,6 +98,8 @@ export interface NGORegisterData {
   registrationNumber?: string;
   panNumber?: string;
   operatingAreas: string;     // comma-separated
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface CorporateRegisterData {
@@ -112,6 +118,8 @@ export interface CorporateRegisterData {
   cin?: string;
   companyPan?: string;
   companyWebsite?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export type RegisterData =

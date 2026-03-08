@@ -13,166 +13,46 @@ import type {
   AuthState,
   RegisterData,
   LoginData,
-  DonorUser,
-  NGOUser,
-  CorporateUser,
 } from "@/types/auth";
+import {
+  registerUser,
+  loginUser,
+  updateProfile as apiUpdateProfile,
+} from "@/lib/api";
 
 /* ═══════════════════════════════════════════════
-   Auth Context — manages registration, login,
-   logout, and persists to localStorage.
+   Auth Context — registration, login, logout.
+   Persists JWT token + user to localStorage.
+   Backed by real /api/auth/* endpoints.
    ═══════════════════════════════════════════════ */
 
 interface AuthContextType extends AuthState {
-  login: (data: LoginData) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  login: (data: LoginData) => Promise<VashudhaUser>;
+  register: (data: RegisterData) => Promise<VashudhaUser>;
   logout: () => void;
-  updateProfile: (data: Partial<VashudhaUser>) => void;
-  saveWalletAddress: (address: string) => void;
+  updateProfile: (data: Partial<VashudhaUser>) => Promise<void>;
+  saveWalletAddress: (address: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = "vashudha_auth";
-const TOKEN_KEY = "vashudha_token";
-
-/* ─── Mock user generator from registration data ─── */
-function createMockUser(data: RegisterData): VashudhaUser {
-  const base = {
-    id: `USR-${Date.now().toString(36).toUpperCase()}`,
-    email: data.email,
-    phone: data.phone,
-    name: data.name,
-    address: data.address,
-    city: data.city,
-    state: data.state,
-    pincode: data.pincode,
-    verified: false, // not verified until admin approves
-    createdAt: new Date().toISOString(),
-  };
-
-  if (data.role === "donor") {
-    return {
-      ...base,
-      role: "donor",
-      donorType: data.donorType,
-      businessName: data.businessName,
-      gstNumber: data.gstNumber,
-      fssaiLicense: data.fssaiLicense,
-    } as DonorUser;
-  }
-
-  if (data.role === "ngo") {
-    return {
-      ...base,
-      role: "ngo",
-      ngoName: data.ngoName,
-      darpanId: data.darpanId,
-      registrationNumber: data.registrationNumber,
-      panNumber: data.panNumber,
-      operatingAreas: data.operatingAreas
-        ? data.operatingAreas.split(",").map((s) => s.trim())
-        : [],
-    } as NGOUser;
-  }
-
-  // corporate
-  return {
-    ...base,
-    role: "corporate",
-    companyName: data.companyName,
-    gstNumber: data.gstNumber,
-    cin: data.cin,
-    companyPan: data.companyPan,
-    designation: data.designation,
-    companyWebsite: data.companyWebsite,
-  } as CorporateUser;
-}
-
-/* ─── Mock registered users for demo login ─── */
-const MOCK_USERS: { email: string; password: string; user: VashudhaUser }[] = [
-  {
-    email: "pearl@hotel.com",
-    password: "demo123",
-    user: {
-      id: "USR-D001",
-      role: "donor",
-      donorType: "restaurant",
-      email: "pearl@hotel.com",
-      phone: "+91-9876543210",
-      name: "Priya Sharma",
-      businessName: "Hotel Pearl Palace",
-      address: "MI Road, Jaipur",
-      city: "Jaipur",
-      state: "Rajasthan",
-      pincode: "302001",
-      gstNumber: "08AABCU9603R1ZM",
-      fssaiLicense: "12726001000123",
-      verified: true,
-      createdAt: "2026-01-15T10:30:00Z",
-    },
-  },
-  {
-    email: "aashray@ngo.org",
-    password: "demo123",
-    user: {
-      id: "USR-N001",
-      role: "ngo",
-      ngoName: "Aashray Foundation",
-      email: "aashray@ngo.org",
-      phone: "+91-9876543211",
-      name: "Rajesh Kumar",
-      address: "Civil Lines, Jaipur",
-      city: "Jaipur",
-      state: "Rajasthan",
-      pincode: "302006",
-      darpanId: "RJ/2025/123456",
-      registrationNumber: "SOC/RJ/2020/456",
-      panNumber: "AAATA1234F",
-      operatingAreas: ["Jaipur", "Jodhpur", "Udaipur"],
-      verified: true,
-      createdAt: "2026-01-10T08:00:00Z",
-    },
-  },
-  {
-    email: "esg@tata.com",
-    password: "demo123",
-    user: {
-      id: "USR-C001",
-      role: "corporate",
-      companyName: "Tata Consultancy",
-      email: "esg@tata.com",
-      phone: "+91-9876543212",
-      name: "Ananya Desai",
-      designation: "ESG Head",
-      address: "MG Road, Mumbai",
-      city: "Mumbai",
-      state: "Maharashtra",
-      pincode: "400001",
-      gstNumber: "27AABCT1234F1ZP",
-      cin: "L22210MH1995PLC084781",
-      companyPan: "AABCT1234F",
-      companyWebsite: "https://tcs.com",
-      verified: true,
-      createdAt: "2026-02-01T14:00:00Z",
-    },
-  },
-];
+const TOKEN_KEY   = "vashudha_token";
 
 /* ═══════════════ Provider ═══════════════ */
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<VashudhaUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user,      setUser]      = useState<VashudhaUser | null>(null);
+  const [token,     setToken]     = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Hydrate from localStorage on mount
+  // ── Hydrate from localStorage on mount ──────────────────────────────────
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const storedUser  = localStorage.getItem(STORAGE_KEY);
       const storedToken = localStorage.getItem(TOKEN_KEY);
-      if (stored && storedToken) {
-        setUser(JSON.parse(stored));
+      if (storedUser && storedToken) {
+        setUser(JSON.parse(storedUser));
         setToken(storedToken);
       }
     } catch {
@@ -181,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  // Persist on change
+  // ── Persist changes ──────────────────────────────────────────────────────
   useEffect(() => {
     if (user && token) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
@@ -189,72 +69,102 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, token]);
 
-  const login = useCallback(async (data: LoginData) => {
+  // ── Map snake_case DB row → camelCase VashudhaUser ─────────────────────
+  const _normalizeUser = (raw: Record<string, unknown>): VashudhaUser => {
+    const base = {
+      id:            raw.id            as string,
+      role:          raw.role          as "donor" | "ngo" | "corporate",
+      email:         raw.email         as string,
+      phone:         raw.phone         as string,
+      name:          raw.name          as string,
+      address:       raw.address       as string,
+      city:          raw.city          as string,
+      state:         raw.state         as string,
+      pincode:       raw.pincode       as string,
+      verified:      (raw.verified     as boolean) ?? false,
+      createdAt:     raw.created_at    as string,
+      walletAddress: (raw.wallet_address as string | undefined) ?? undefined,
+      latitude:      (raw.latitude  as number | undefined) ?? undefined,
+      longitude:     (raw.longitude as number | undefined) ?? undefined,
+    };
+    if (raw.role === "donor") {
+      return {
+        ...base,
+        role:         "donor",
+        donorType:    raw.donor_type    as "restaurant" | "caterer" | "hostel" | "pg" | "individual",
+        businessName: (raw.business_name as string) ?? (raw.name as string),
+        gstNumber:    (raw.gst_number    as string | undefined) ?? undefined,
+        fssaiLicense: (raw.fssai_license as string | undefined) ?? undefined,
+      };
+    }
+    if (raw.role === "ngo") {
+      const areas = raw.operating_areas;
+      return {
+        ...base,
+        role:               "ngo",
+        ngoName:            (raw.ngo_name            as string) ?? (raw.name as string),
+        darpanId:           (raw.darpan_id           as string | undefined) ?? undefined,
+        registrationNumber: (raw.registration_number as string | undefined) ?? undefined,
+        panNumber:          (raw.pan_number          as string | undefined) ?? undefined,
+        operatingAreas:     Array.isArray(areas)
+                              ? (areas as string[])
+                              : typeof areas === "string"
+                              ? (areas as string).split(",").map((s) => s.trim()).filter(Boolean)
+                              : [],
+      };
+    }
+    // corporate
+    return {
+      ...base,
+      role:           "corporate",
+      companyName:    (raw.company_name    as string) ?? (raw.name as string),
+      gstNumber:      (raw.gst_number      as string) ?? "",
+      cin:            (raw.cin             as string | undefined) ?? undefined,
+      companyPan:     (raw.company_pan     as string | undefined) ?? undefined,
+      designation:    (raw.designation     as string) ?? "",
+      companyWebsite: (raw.company_website as string | undefined) ?? undefined,
+    };
+  };
+
+  // ── login ────────────────────────────────────────────────────────────────
+  const login = useCallback(async (data: LoginData): Promise<VashudhaUser> => {
     setIsLoading(true);
-    // Simulate API call delay
-    await new Promise((r) => setTimeout(r, 1200));
-
-    // Check mock users first
-    const found = MOCK_USERS.find(
-      (u) => u.email === data.email && u.password === data.password
-    );
-
-    if (found) {
-      const mockToken = `vst_${Date.now().toString(36)}`;
-      setUser(found.user);
-      setToken(mockToken);
+    try {
+      const res = await loginUser(data);
+      const { token: jwt, user: raw } = res.data as { token: string; user: Record<string, unknown> };
+      const normalized = _normalizeUser(raw);
+      setToken(jwt);
+      setUser(normalized);
+      return normalized;
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      throw new Error(axiosErr?.response?.data?.error ?? axiosErr?.message ?? "Login failed");
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    // Check if user was registered in localStorage (from register flow)
-    const registeredUsers = JSON.parse(
-      localStorage.getItem("vashudha_registered_users") || "[]"
-    );
-    const registered = registeredUsers.find(
-      (u: { email: string; password: string }) =>
-        u.email === data.email && u.password === data.password
-    );
-
-    if (registered) {
-      const mockToken = `vst_${Date.now().toString(36)}`;
-      setUser(registered.user);
-      setToken(mockToken);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(false);
-    throw new Error("Invalid email or password");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const register = useCallback(async (data: RegisterData) => {
+  // ── register ─────────────────────────────────────────────────────────────
+  const register = useCallback(async (data: RegisterData): Promise<VashudhaUser> => {
     setIsLoading(true);
-    // Simulate API call delay
-    await new Promise((r) => setTimeout(r, 1500));
-
-    const newUser = createMockUser(data);
-    const mockToken = `vst_${Date.now().toString(36)}`;
-
-    // Store in registered users list (localStorage mock of backend)
-    const registeredUsers = JSON.parse(
-      localStorage.getItem("vashudha_registered_users") || "[]"
-    );
-    registeredUsers.push({
-      email: data.email,
-      password: data.password,
-      user: newUser,
-    });
-    localStorage.setItem(
-      "vashudha_registered_users",
-      JSON.stringify(registeredUsers)
-    );
-
-    setUser(newUser);
-    setToken(mockToken);
-    setIsLoading(false);
+    try {
+      const res = await registerUser(data as unknown as Record<string, unknown>);
+      const { token: jwt, user: raw } = res.data as { token: string; user: Record<string, unknown> };
+      const normalized = _normalizeUser(raw);
+      setToken(jwt);
+      setUser(normalized);
+      return normalized;
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      throw new Error(axiosErr?.response?.data?.error ?? axiosErr?.message ?? "Registration failed");
+    } finally {
+      setIsLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── logout ───────────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
@@ -262,43 +172,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(TOKEN_KEY);
   }, []);
 
-  const updateProfile = useCallback(
-    (data: Partial<VashudhaUser>) => {
-      if (user) {
-        const updated = { ...user, ...data } as VashudhaUser;
-        setUser(updated);
-      }
-    },
-    [user]
-  );
+  // ── updateProfile ─────────────────────────────────────────────────────────
+  const updateProfile = useCallback(async (data: Partial<VashudhaUser>) => {
+    try {
+      const res = await apiUpdateProfile(data as unknown as Record<string, unknown>);
+      const { user: raw } = res.data as { user: Record<string, unknown> };
+      setUser(_normalizeUser(raw));
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      throw new Error(axiosErr?.response?.data?.error ?? axiosErr?.message ?? "Profile update failed");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const saveWalletAddress = useCallback(
-    (walletAddr: string) => {
-      if (!user) return;
-      const updated = { ...user, walletAddress: walletAddr } as VashudhaUser;
-      setUser(updated);
-
-      // Also update in registered users localStorage
-      try {
-        const registeredUsers = JSON.parse(
-          localStorage.getItem("vashudha_registered_users") || "[]"
-        );
-        const idx = registeredUsers.findIndex(
-          (u: { email: string }) => u.email === user.email
-        );
-        if (idx >= 0) {
-          registeredUsers[idx].user.walletAddress = walletAddr;
-          localStorage.setItem(
-            "vashudha_registered_users",
-            JSON.stringify(registeredUsers)
-          );
-        }
-      } catch {
-        // ignore
-      }
-    },
-    [user]
-  );
+  // ── saveWalletAddress ─────────────────────────────────────────────────────
+  const saveWalletAddress = useCallback(async (walletAddr: string) => {
+    try {
+      await apiUpdateProfile({ walletAddress: walletAddr });
+      setUser((prev) =>
+        prev ? ({ ...prev, walletAddress: walletAddr } as VashudhaUser) : prev
+      );
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      throw new Error(axiosErr?.response?.data?.error ?? axiosErr?.message ?? "Failed to save wallet");
+    }
+  }, []);
 
   return (
     <AuthContext.Provider

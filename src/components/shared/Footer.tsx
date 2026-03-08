@@ -1,7 +1,20 @@
+"use client";
+
 import Link from "next/link";
 import { Leaf, Github, Twitter, Linkedin } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Footer() {
+  const { user } = useAuth();
+  const isNgo = user?.role === "ngo";
+
+  const platformLinks = [
+    ...(!isNgo ? [{ href: "/donate", label: "Donate Food" }] : []),
+    { href: "/dashboard", label: "Live Dashboard" },
+    { href: "/ngo", label: "NGO Dispatch" },
+    { href: "/predict", label: "AI Predictions" },
+  ];
+
   return (
     <footer
       className="border-t"
@@ -37,12 +50,7 @@ export function Footer() {
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "#4a664a" }}>Platform</h4>
             <ul className="space-y-3">
-              {[
-                { href: "/donate", label: "Donate Food" },
-                { href: "/dashboard", label: "Live Dashboard" },
-                { href: "/ngo", label: "NGO Dispatch" },
-                { href: "/predict", label: "AI Predictions" },
-              ].map((link) => (
+              {platformLinks.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="text-sm transition-colors" style={{ color: "#86a886" }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = "#f0faf0")}

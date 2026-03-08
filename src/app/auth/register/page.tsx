@@ -25,6 +25,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useGeoLocation } from "@/hooks/useGeoLocation";
 import type { UserRole, DonorType } from "@/types/auth";
 
 /* ─── Role & donor type options ─── */
@@ -177,6 +178,7 @@ function FormSelect({
 export default function RegisterPage() {
   const router = useRouter();
   const { register: registerUser, isLoading } = useAuth();
+  const { coords: geoCoords, loading: geoLoading, error: geoError, getLocation } = useGeoLocation();
 
   // Wizard steps: 0 = role select, 1 = details form
   const [step, setStep] = useState(0);
@@ -287,6 +289,8 @@ export default function RegisterPage() {
           pincode: formData.pincode,
           gstNumber: formData.gstNumber || undefined,
           fssaiLicense: formData.fssaiLicense || undefined,
+          latitude:  geoCoords?.lat,
+          longitude: geoCoords?.lng,
         });
       } else if (selectedRole === "ngo") {
         await registerUser({
@@ -304,6 +308,8 @@ export default function RegisterPage() {
           registrationNumber: formData.registrationNumber || undefined,
           panNumber: formData.panNumber || undefined,
           operatingAreas: formData.operatingAreas,
+          latitude:  geoCoords?.lat,
+          longitude: geoCoords?.lng,
         });
       } else {
         await registerUser({
@@ -322,6 +328,8 @@ export default function RegisterPage() {
           cin: formData.cin || undefined,
           companyPan: formData.companyPan || undefined,
           companyWebsite: formData.companyWebsite || undefined,
+          latitude:  geoCoords?.lat,
+          longitude: geoCoords?.lng,
         });
       }
 
@@ -412,7 +420,11 @@ export default function RegisterPage() {
                       key={r.role}
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
-                      onClick={() => setSelectedRole(r.role)}
+                      onClick={() => {
+                        setSelectedRole(r.role);
+                        // Pre-emptively request device location as soon as role is picked
+                        getLocation();
+                      }}
                       className="w-full flex items-center gap-4 p-5 rounded-2xl text-left transition-all"
                       style={{
                         background: isSelected
@@ -603,6 +615,40 @@ export default function RegisterPage() {
                   {error}
                 </div>
               )}
+
+              {/* ─── Location status banner ─── */}
+              <div
+                className="rounded-xl px-4 py-3 mb-4 text-xs flex items-center gap-2"
+                style={{
+                  background: geoCoords
+                    ? "rgba(34,197,94,0.06)"
+                    : geoError
+                    ? "rgba(239,68,68,0.06)"
+                    : "rgba(34,197,94,0.04)",
+                  border: `1px solid ${geoCoords ? "rgba(34,197,94,0.2)" : geoError ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.1)"}`,
+                  color: geoCoords ? "#22c55e" : geoError ? "#ef4444" : "#86a886",
+                }}
+              >
+                <MapPin size={13} />
+                {geoLoading
+                  ? "Detecting your location…"
+                  : geoCoords
+                  ? `Location captured (${geoCoords.lat.toFixed(4)}, ${geoCoords.lng.toFixed(4)})`
+                  : geoError
+                  ? `${geoError} — location will not be saved.`
+                  : (
+                    <span>
+                      Location not captured.{" "}
+                      <button
+                        type="button"
+                        onClick={getLocation}
+                        style={{ textDecoration: "underline", background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}
+                      >
+                        Allow access
+                      </button>
+                    </span>
+                  )}
+              </div>
 
               <div className="space-y-4">
                 {/* ─── Role-specific fields first ─── */}

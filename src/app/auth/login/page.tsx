@@ -36,8 +36,9 @@ export default function LoginPage() {
     }
 
     try {
-      await login({ email, password });
-      router.push("/donate");
+      const loggedInUser = await login({ email, password });
+      const role = loggedInUser?.role;
+      router.push(role === "ngo" ? "/ngo" : role === "corporate" ? "/dashboard" : "/donate");
     } catch (err: any) {
       setError(err.message || "Login failed. Please check your credentials.");
     }
@@ -48,8 +49,9 @@ export default function LoginPage() {
     setPassword(password);
     setError("");
     try {
-      await login({ email, password });
-      router.push("/donate");
+      const loggedInUser = await login({ email, password });
+      const role = loggedInUser?.role;
+      router.push(role === "ngo" ? "/ngo" : role === "corporate" ? "/dashboard" : "/donate");
     } catch (err: any) {
       setError(err.message);
     }

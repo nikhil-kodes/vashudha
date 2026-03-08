@@ -22,9 +22,9 @@ import {
 import { useWallet } from "@/hooks/useWallet";
 import { useAuth } from "@/hooks/useAuth";
 
-const navLinks = [
+const ALL_NAV_LINKS = [
   { href: "/dashboard", label: "Live Map", icon: MapPin },
-  { href: "/donate", label: "Donate Food", icon: Heart },
+  { href: "/donate", label: "Donate Food", icon: Heart, donorOnly: true },
   { href: "/marketplace", label: "Marketplace", icon: Store },
   { href: "/predict", label: "AI Predict", icon: Brain },
   { href: "/ngo", label: "NGO App", icon: Users },
@@ -38,6 +38,12 @@ export function Navbar() {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const { shortAddress, connecting, isConnected, connect } = useWallet();
   const { user, isAuthenticated, logout } = useAuth();
+
+  // Hide "Donate Food" only for NGO users
+  const navLinks = ALL_NAV_LINKS.filter((link) => {
+    if (link.donorOnly && user?.role === "ngo") return false;
+    return true;
+  });
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 40);
