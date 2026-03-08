@@ -345,6 +345,9 @@ Accepted for voluntary ESG disclosure under India's BRSR Core framework and CSR 
 
 ---
 
+# Proof of transaction
+<img src="./assets/screenshots/proof.png" width="100%">
+
 ## Wallet Setup — MetaMask Guide
 
 Vasudha uses **Polygon** for all on-chain activity. MetaMask is the recommended wallet for both donors and enterprise buyers.
