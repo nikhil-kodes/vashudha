@@ -209,7 +209,8 @@ The VGC floor price is **₹800 per token** (1 tonne CO₂e), enforced by the Ma
 
 ### 1. Restaurants & Donors
 
-<img src="./assets/onboarding/donor-onboarding.png" alt="Donor onboarding flow" width="100%" />
+<img src="./assets/onboarding/donor-onboarding1.png" alt="Donor onboarding flow" width="100%" />
+<img src="./assets/onboarding/donor-onboarding2.png" alt="Donor onboarding flow" width="100%" />
 
 **Step 1 — Register at `/donate`**
 
@@ -265,7 +266,7 @@ Submit → an NGO is auto-matched and dispatched within 10 seconds.
 
 ### 2. NGO Volunteers
 
-<img src="./assets/onboarding/ngo-onboarding.png" alt="NGO onboarding flow" width="100%" />
+<img src="./assets/screenshots/ngo-dispatch.png" alt="NGO onboarding flow" width="100%" />
 
 **Step 1 — NGO coordinator registers at `/ngo`**
 
@@ -403,7 +404,7 @@ Wallet connection is entirely optional. Without MetaMask:
 
 ## Buying VGC — Enterprise Flow
 
-<img src="./assets/flows/buy-vgc-flow.png" alt="Buy VGC flow" width="100%" />
+<img src="./assets/screenshots/marketplace.png" alt="Buy VGC flow" width="100%" />
 
 ### Self-Serve (Marketplace)
 
@@ -467,7 +468,7 @@ Cancel any active listing from `/marketplace/my-listings`. Escrowed VGC returns 
 
 The volunteer interface is built for a single-handed mobile experience on a low-end Android browser. No app download required.
 
-<img src="./assets/screenshots/ngo-dispatch-mobile.png" alt="NGO dispatch interface on mobile" width="50%" />
+<img src="./assets/screenshots/ngo-dispatch.png" alt="NGO dispatch interface on mobile" width="100%" />
 
 **Step 1 — Open `/ngo` on your phone**
 
@@ -558,7 +559,7 @@ This single tap triggers the full delivery confirmation:
 
 ## Architecture
 
-<img src="./assets/architecture-diagram.png" alt="Vasudha system architecture diagram" width="100%" />
+<img src="./assets/platform-flow-diagram.png" alt="Vasudha system architecture diagram" width="100%" />
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
